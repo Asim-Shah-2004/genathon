@@ -20,6 +20,16 @@ API_KEY = config('API_KEY')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
+import pymongo
+from decouple import config
+
+# MongoDB setup
+DATABASE_URL = config("DATABASE_URL")
+
+mongo_client = pymongo.MongoClient(DATABASE_URL)
+db = mongo_client["Genathon"]  # Your DB name
+employees_collection = db["Employee"]
+calls_collection = db["Call"]
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-&!kwq0rs1k)4$(7f2^fyjnuokfzp%f3cuc8p5sbbzdwp)=$i@g'
 
