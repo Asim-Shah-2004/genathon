@@ -4,7 +4,7 @@ import "dotenv/config"
 
 import {Employee,Admin} from "../../../models/index.js"
 
-const JWT_SECRET = process.env.JWT_SECRET;  
+const JWT_SECRET = process.env.JWT_SECRET
 
 const login = async (req, res) => {
   try {

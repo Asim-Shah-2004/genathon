@@ -1,5 +1,4 @@
 import axios from 'axios';
-import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { Stack } from 'expo-router';
@@ -9,9 +8,11 @@ import Animated from 'react-native-reanimated';
 
 import { Container } from '~/components/Container';
 
-//ip addr
+const API_URL = 'http://192.168.104.139:3000/upload';
 
-const API_URL = 'http://xxx.xxx.xxx.xx:3000/upload';
+// Directory paths for different platforms
+const ANDROID_MUSIC_DIR = "/storage/emulated/0/CallRecordings"; // Standard Android music directory
+const IOS_DOCUMENTS_DIR = FileSystem.documentDirectory;
 
 export default function Input() {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -23,35 +24,91 @@ export default function Input() {
       const mediaPermission = await MediaLibrary.requestPermissionsAsync();
       if (mediaPermission.status !== 'granted') {
         Alert.alert('Permission denied', 'You need to enable permission to access media files.');
+        return false;
       }
+      
+      // For Android, we need additional storage permission
+      if (Platform.OS === 'android') {
+        // On Android 10 and above, we need to use MediaLibrary
+        // On older versions, this will handle file system permissions
+        const { status } = await MediaLibrary.getPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission denied', 'Storage access is required to read audio files.');
+          return false;
+        }
+      }
+      return true;
     } catch (error) {
       console.error('Permission request error:', error);
       Alert.alert('Error', 'Failed to request permissions');
+      return false;
     }
   };
 
-  useEffect(() => {
-    requestPermissions();
-  }, []);
-
-  const pickAudio = async () => {
+  const getAudioFilesFromDirectory = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
-        copyToCacheDirectory: true,
-        multiple: true,
-      });
+      const hasPermissions = await requestPermissions();
+      if (!hasPermissions) return;
 
-      if (result.canceled) {
+      let audioFiles = [];
+
+      if (Platform.OS === 'android') {
+        // For Android, use MediaLibrary to get audio files
+        const media = await MediaLibrary.getAssetsAsync({
+          mediaType: 'audio',
+          first: 100, // Limit the number of files to process
+        });
+        
+        audioFiles = media.assets.map(asset => ({
+          uri: asset.uri,
+          name: asset.filename,
+          mimeType: 'audio/mpeg', // Default to mp3, adjust if needed
+        }));
+      } else {
+        // For iOS, read from documents directory
+        const dirContent = await FileSystem.readDirectoryAsync(IOS_DOCUMENTS_DIR);
+        
+        // Filter for audio files (add more extensions if needed)
+        const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac'];
+        const audioFileNames = dirContent.filter(filename => 
+          audioExtensions.some(ext => filename.toLowerCase().endsWith(ext))
+        );
+
+        audioFiles = await Promise.all(audioFileNames.map(async filename => {
+          const uri = `${IOS_DOCUMENTS_DIR}${filename}`;
+          return {
+            uri,
+            name: filename,
+            mimeType: 'audio/mpeg', // You might want to determine this based on file extension
+          };
+        }));
+      }
+
+      if (audioFiles.length === 0) {
+        Alert.alert('No Files Found', 'No audio files found in the specified directory.');
         return;
       }
 
-      setUploading(true);
-      const newFiles = result.assets;
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      setSelectedFiles(audioFiles);
+      return audioFiles;
+    } catch (error) {
+      console.error('Error reading directory:', error);
+      Alert.alert('Error', 'Failed to read audio files from directory');
+      return [];
+    }
+  };
 
+  const uploadFiles = async () => {
+    if (selectedFiles.length === 0) {
+      Alert.alert('No Files', 'No audio files selected for upload.');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
       // Upload files sequentially
-      for (const file of newFiles) {
+      for (const file of selectedFiles) {
         try {
           await uploadAudio(file);
         } catch (error) {
@@ -60,8 +117,7 @@ export default function Input() {
         }
       }
     } catch (error) {
-      console.error('File picking error:', error);
-      Alert.alert('Error', 'An error occurred while selecting the audio files.');
+      console.error('Upload process error:', error);
     } finally {
       setUploading(false);
     }
@@ -69,13 +125,11 @@ export default function Input() {
 
   const uploadAudio = async (file) => {
     try {
-      // First, check if the file exists
       const fileInfo = await FileSystem.getInfoAsync(file.uri);
       if (!fileInfo.exists) {
         throw new Error('File does not exist');
       }
 
-      // Create FormData manually
       const formData = new FormData();
       formData.append('file', {
         uri: file.uri,
@@ -83,15 +137,6 @@ export default function Input() {
         name: file.name
       });
 
-      // Log upload attempt
-      console.log('Attempting upload:', {
-        uri: file.uri,
-        name: file.name,
-        type: file.mimeType,
-        size: fileInfo.size
-      });
-
-      // Use axios instead of FileSystem.uploadAsync for better control
       const response = await axios.post(API_URL, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -104,37 +149,22 @@ export default function Input() {
             [file.uri]: progress
           }));
         },
-        validateStatus: (status) => true, // Don't reject any status codes
+        validateStatus: (status) => true,
       });
 
-      // Check response status
       if (response.status !== 200) {
         throw new Error(`Server returned status ${response.status}`);
       }
 
-      // Try to parse response as JSON
-      let result;
-      try {
-        result = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-      } catch (error) {
-        console.warn('Response is not JSON:', response.data);
-        result = { message: 'File uploaded but response format unexpected' };
-      }
-
+      let result = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
       console.log('Upload successful:', result);
       return result;
 
     } catch (error) {
-      console.error('Upload error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
+      console.error('Upload error:', error);
       let errorMessage = `Failed to upload ${file.name}. `;
       
       if (error.response) {
-        // Server responded with non-200 status
         if (error.response.status === 413) {
           errorMessage += 'File is too large for the server.';
         } else if (error.response.status === 415) {
@@ -145,21 +175,16 @@ export default function Input() {
           errorMessage += `Server error: ${error.response.status}`;
         }
       } else if (error.request) {
-        // Request made but no response
         errorMessage += 'No response from server. Check your connection.';
       } else {
-        // Error before making request
         errorMessage += error.message;
       }
 
       Alert.alert('Upload Failed', errorMessage);
-      
-      // Set progress to 0 for failed upload
       setUploadProgress(prev => ({
         ...prev,
         [file.uri]: 0
       }));
-
       throw error;
     }
   };
@@ -189,17 +214,24 @@ export default function Input() {
       <Container>
         <View className="p-4">
           <Button
-            title={uploading ? 'Uploading...' : 'Pick audio files'}
-            onPress={pickAudio}
+            title="Load Audio Files"
+            onPress={getAudioFilesFromDirectory}
             disabled={uploading}
           />
           {selectedFiles.length > 0 && (
-            <FlatList
-              data={selectedFiles}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.uri}
-              style={{ marginTop: 16 }}
-            />
+            <>
+              <Button
+                title={uploading ? 'Uploading...' : 'Upload Selected Files'}
+                onPress={uploadFiles}
+                disabled={uploading}
+              />
+              <FlatList
+                data={selectedFiles}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.uri}
+                style={{ marginTop: 16 }}
+              />
+            </>
           )}
         </View>
       </Container>
