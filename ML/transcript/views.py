@@ -62,9 +62,8 @@ class ProcessCallView(APIView):
         result = whisper_model.transcribe(audio_path)
         transcript = result["text"]
 
-        # Generate English translation and analysis using Gemini
         english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
-        summary = chat_model.invoke([{"role": "user", "content": f"Summarize: {english_translation}"}]).content
+        summary = chat_model.invoke([{"role": "user", "content": f"You are a call summarizer:You are given english transcript of a call and your task is to do expert call summary : {english_translation}"}]).content
         key_points = chat_model.invoke([{"role": "user", "content": f"Key points: {english_translation}"}]).content
         offensive_check = "offensive" in english_translation.lower()
 

@@ -6,7 +6,7 @@ from .views import (
     # KeyPointsView,
     # OffensiveDetectionView,
     # AudioProcessingView,
-    ProcessCallView
+     ProcessCallView
 )
 
 urlpatterns = [
@@ -16,5 +16,5 @@ urlpatterns = [
     # path('keypoints/', KeyPointsView.as_view(), name='key-points'),
     # path('offensive/', OffensiveDetectionView.as_view(), name='offensive-detection'),
     # path('api/audio-process/', AudioProcessingView.as_view(), name='audio-process'),
-    path('api/process_call/', ProcessCallView.as_view(), name='process_call'),
+    path('api/process_call/',  ProcessCallView.as_view(), name='process_call'),
 ]
