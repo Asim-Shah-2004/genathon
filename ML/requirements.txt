@@ -1,0 +1,10 @@
+django==4.2.5
+djangorestframework
+django-cors-headers
+whisper==1.0
+ffmpeg-python==0.2.0  
+langchain 
+langchain_google_genai==0.1.0  # Gemini support
+google-generativeai==0.1.0  # For Google Gemini models
+python-decouple    
+git+https://github.com/openai/whisper.git
