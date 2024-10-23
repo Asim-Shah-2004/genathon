@@ -29,8 +29,6 @@ export default function Input() {
       
       // For Android, we need additional storage permission
       if (Platform.OS === 'android') {
-        // On Android 10 and above, we need to use MediaLibrary
-        // On older versions, this will handle file system permissions
         const { status } = await MediaLibrary.getPermissionsAsync();
         if (status !== 'granted') {
           Alert.alert('Permission denied', 'Storage access is required to read audio files.');
@@ -58,20 +56,25 @@ export default function Input() {
           mediaType: 'audio',
           first: 100, // Limit the number of files to process
         });
-        
-        audioFiles = media.assets.map(asset => ({
-          uri: asset.uri,
-          name: asset.filename,
-          mimeType: 'audio/mpeg', // Default to mp3, adjust if needed
-        }));
+
+        // Filter audio files with 'call recording' in their names using regex
+        const regex = /call recording/i;
+        audioFiles = media.assets
+          .filter(asset => regex.test(asset.filename)) // Match only files with 'call recording' in their name
+          .map(asset => ({
+            uri: asset.uri,
+            name: asset.filename,
+            mimeType: 'audio/mpeg', // Default to mp3, adjust if needed
+          }));
       } else {
         // For iOS, read from documents directory
         const dirContent = await FileSystem.readDirectoryAsync(IOS_DOCUMENTS_DIR);
-        
+
         // Filter for audio files (add more extensions if needed)
         const audioExtensions = ['.mp3', '.m4a', '.wav', '.aac'];
         const audioFileNames = dirContent.filter(filename => 
-          audioExtensions.some(ext => filename.toLowerCase().endsWith(ext))
+          audioExtensions.some(ext => filename.toLowerCase().endsWith(ext)) &&
+          /call recording/i.test(filename) // Match only files with 'call recording' in their name
         );
 
         audioFiles = await Promise.all(audioFileNames.map(async filename => {
@@ -85,7 +88,7 @@ export default function Input() {
       }
 
       if (audioFiles.length === 0) {
-        Alert.alert('No Files Found', 'No audio files found in the specified directory.');
+        Alert.alert('No Files Found', 'No call recordings found in the specified directory.');
         return;
       }
 
@@ -214,7 +217,7 @@ export default function Input() {
       <Container>
         <View className="p-4">
           <Button
-            title="Load Audio Files"
+            title="Load Call Recordings"
             onPress={getAudioFilesFromDirectory}
             disabled={uploading}
           />
