@@ -54,7 +54,7 @@ class ProcessCallView(APIView):
             return Response({"error": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Save the audio file temporarily
-        audio_path = os.path.join("media", str(audio_file))
+        audio_path = os.path.join("media", audio_file.name)
         with open(audio_path, 'wb+') as destination:
             for chunk in audio_file.chunks():
                 destination.write(chunk)
@@ -62,6 +62,7 @@ class ProcessCallView(APIView):
         # Transcribe the audio
         result = whisper_model.transcribe(audio_path)
         transcript = result["text"]
+
 
         # Generate English translation and analysis using Gemini
         english_translation = chat_model.invoke([{"role": "system", "content": f" You are an expert English translator proficient in translating from any language into English. Your task is to accurately convey the original meaning, tone, and cultural nuances of the source text while ensuring clarity and readability for an English-speaking audience. {transcript}"}]).content
