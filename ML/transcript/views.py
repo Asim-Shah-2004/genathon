@@ -62,9 +62,10 @@ class ProcessCallView(APIView):
         result = whisper_model.transcribe(audio_path)
         transcript = result["text"]
 
-        english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
-        summary = chat_model.invoke([{"role": "user", "content": f"You are a call summarizer:You are given english transcript of a call and your task is to do expert call summary : {english_translation}"}]).content
-        key_points = chat_model.invoke([{"role": "user", "content": f"Key points: {english_translation}"}]).content
+        # Generate English translation and analysis using Gemini
+        english_translation = chat_model.invoke([{"role": "system", "content": f" You are an expert English translator proficient in translating from any language into English. Your task is to accurately convey the original meaning, tone, and cultural nuances of the source text while ensuring clarity and readability for an English-speaking audience. {transcript}"}]).content
+        summary = chat_model.invoke([{"role": "system", "content": f"You are an expert summarizer skilled in distilling complex texts into concise, clear summaries. Your task is to extract the main ideas, key points, and essential details from the provided content while maintaining the original tone and intent. Ensure the summary is easy to understand and captures the essence of the source material.: {english_translation}"}]).content
+        key_points = chat_model.invoke([{"role": "system", "content": f"You are an expert summarizer who excels at extracting key points from any text. Your task is to identify and present the most important information, main ideas, and critical details in a clear and concise format. Ensure that the key points reflect the essence of the original content while remaining easily understandable for the intended audience.: {english_translation}"}]).content
         offensive_check = "offensive" in english_translation.lower()
 
         # Prepare Call data
