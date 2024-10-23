@@ -10,7 +10,7 @@ import path from "path";
 import { connectDB } from "./services/index.js";
 import { authenticateToken } from "./middlewares/index.js"; 
 import {logger} from "./utils/index.js"
-import {registerRouter,loginRouter} from "./routers/index.js"
+import {registerRouter,loginRouter,userRouter} from "./routers/index.js"
 
 const app = express();
 const PORT = process.env.PORT;
@@ -54,6 +54,7 @@ connectDB();
 
 app.use('/register',registerRouter)
 app.use('/login',loginRouter)
+app.use('/user',userRouter)
 
 app.use(authenticateToken);
 

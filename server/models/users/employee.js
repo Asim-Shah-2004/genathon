@@ -30,6 +30,17 @@ const employeeSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  totalCalls: {
+    type: Number,
+    default: 0, // Total number of calls made and received (incoming + outgoing)
+  },
+  totalCallLength: {
+    type: Number,
+    default: 0, // Store total call length in seconds
+  },
+  lastCallMade: {
+    type: Date, // Date of the last call made by the employee
+  },
   location: {
     type: String,
     required: true,
