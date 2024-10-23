@@ -1,7 +1,7 @@
 // import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
 import Dashboard from '@/pages/Dashboard';
 
 const App = () => {
@@ -9,7 +9,8 @@ const App = () => {
     <div>
       <Toaster position="bottom-right" richColors />
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path='/dashboard' element={<Dashboard />} />
       </Routes>
     </div>
