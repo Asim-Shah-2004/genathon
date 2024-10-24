@@ -3,18 +3,18 @@ import { Employee, Admin } from "../../../models/index.js";
 
 const registerEmployee = async (req, res) => {
   try {
-    const { username, password, phoneNumber, location } = req.body;
+    const { email, password, phoneNumber, location } = req.body;
 
-    const existingEmployee = await Employee.findOne({ username });
-    const existingAdmin = await Admin.findOne({ username });
+    const existingEmployee = await Employee.findOne({ email });
+    const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin || existingEmployee) {
-      return res.status(400).json({ message: 'username already exists' });
+      return res.status(400).json({ message: 'email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newEmployee = new Employee({
-      username,
+      email,
       password: hashedPassword,
       phoneNumber,
       location,

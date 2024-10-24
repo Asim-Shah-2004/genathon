@@ -15,6 +15,14 @@ import {registerRouter,loginRouter,userRouter} from "./routers/index.js"
 const app = express();
 const PORT = process.env.PORT;
 
+const corsOptions = {
+    origin: ["*","http://localhost:5173" , "http://192.168.118.236:5173"],
+    methods: "POST, GET , PATCH",
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, 'uploads/');
