@@ -9,6 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.schema import AIMessage
 from decouple import config
 from pymongo import MongoClient
+from pydub import AudioSegment  # Import pydub for audio manipulation
 
 # MongoDB setup
 DATABASE_URL = config("DATABASE_URL")
@@ -58,10 +59,16 @@ class ProcessCallView(APIView):
             for chunk in audio_file.chunks():
                 destination.write(chunk)
 
+        # Calculate the audio length using pydub
+        audio_segment = AudioSegment.from_file(audio_path)
+        call_length = len(audio_segment) / 1000  # Length in seconds
+
+        if call_length <= 0:
+            return Response({"error": "Call length must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Transcribe the audio
         result = whisper_model.transcribe(audio_path)
         transcript = result["text"]
-
 
         # Generate English translation and analysis using Gemini
         english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
@@ -72,13 +79,13 @@ class ProcessCallView(APIView):
         # Generate satisfaction score using Gemini based on the summary and transcript
         satisfaction_score = chat_model.invoke([{
             "role": "user",
-            "content": f"Based on the following summary and transcript, provide a satisfaction score (1-100):\n\nSummary: {summary}\nTranscript: {transcript}.Give only a value no text please"
+            "content": f"Based on the following summary and transcript, provide a satisfaction score (1-100):\n\nSummary: {summary}\nTranscript: {transcript}. Give only a value no text please."
         }]).content
 
         # Prepare Call data
         call_data = {
             "type": request.data.get("type", "incoming"),  # Incoming or Outgoing
-            "length": int(request.data.get("length", 0)),  # Call length in seconds
+            "length": call_length,  # Call length in seconds
             "callRecording": audio_file.read(),
             "sentiment": "neutral",  # Example: Add actual sentiment analysis logic
             "transcriptOriginal": transcript,
@@ -101,7 +108,7 @@ class ProcessCallView(APIView):
                     "numberOfCalls": 1,
                     "numberOfIncoming" if call_data["type"] == "incoming" else "numberOfOutgoing": 1,
                     "numberOfMisbehaves": 1 if offensive_check else 0,
-                    "totalCallTime": call_data["length"]  # Increment total call time
+                    "totalCallTime": call_length  # Increment total call time
                 }
             }
         )

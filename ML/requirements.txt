@@ -16,3 +16,4 @@ transformers
 pymongo 
 dnspython 
 PyJWT     
+pydub
