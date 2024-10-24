@@ -17,3 +17,7 @@ pymongo
 dnspython 
 PyJWT     
 pydub
+nltk 
+textblob
+ spacy
+  seaborn

@@ -1,0 +1,12 @@
+utterance_id,speaker,confidence,text,word_count,char_count,contains_question,contains_exclamation,sentiment_compound,sentiment_positive,sentiment_negative,sentiment_neutral,exclamation_count,question_count,caps_ratio,anger_score,frustration_score,satisfaction_score,urgency_score
+1,Customer,0.5,Hello.,1,6,False,False,0.0,0.0,0.0,1.0,0,0,0.16666666666666666,0,0,0,0
+2,Customer,0.5,Hello.,1,6,False,False,0.0,0.0,0.0,1.0,0,0,0.16666666666666666,0,0,0,0
+3,Customer,0.5,"Yeah, I'm Aisha speaking.",4,25,False,False,0.296,0.423,0.0,0.577,0,0,0.12,0,0,0,0
+4,Customer,0.5,Okay.,1,5,False,False,0.2263,1.0,0.0,0.0,0,0,0.2,0,0,0,0
+5,Customer,0.5,"Yeah, I actually wanted to ask you that would you be free to play badminton doubles with me?",18,92,True,False,0.7845,0.361,0.0,0.639,0,1,0.021739130434782608,0,0,0,0
+6,Customer,0.5,Double since we I am free today.,7,32,False,False,0.5106,0.398,0.0,0.602,0,0,0.0625,0,0,0,0
+7,Customer,0.5,"Okay, then let's meet outside the camp team and we'll discuss for the.",13,70,False,False,0.2263,0.137,0.0,0.863,0,0,0.014285714285714285,0,0,0,0
+8,Customer,0.5,Add lunchtime.,2,14,False,False,0.0,0.0,0.0,1.0,0,0,0.07142857142857142,0,0,0,0
+9,Customer,0.5,"Yeah, sure.",2,11,False,False,0.5423,1.0,0.0,0.0,0,0,0.09090909090909091,0,0,0,0
+10,Customer,0.5,All right then.,3,15,False,False,0.0,0.0,0.0,1.0,0,0,0.06666666666666667,0,0,0,0
+11,Customer,0.5,Bye.,1,4,False,False,0.0,0.0,0.0,1.0,0,0,0.25,0,0,0,0
