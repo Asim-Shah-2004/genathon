@@ -49,7 +49,6 @@ class ProcessCallView(APIView):
 
         # Get the audio file
         audio_file = request.FILES.get('audio')
-        print(audio_file)
         if not audio_file:
             return Response({"error": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -65,10 +64,16 @@ class ProcessCallView(APIView):
 
 
         # Generate English translation and analysis using Gemini
-        english_translation = chat_model.invoke([{"role": "system", "content": f" You are an expert English translator proficient in translating from any language into English. Your task is to accurately convey the original meaning, tone, and cultural nuances of the source text while ensuring clarity and readability for an English-speaking audience. {transcript}"}]).content
-        summary = chat_model.invoke([{"role": "system", "content": f"You are an expert summarizer skilled in distilling complex texts into concise, clear summaries. Your task is to extract the main ideas, key points, and essential details from the provided content while maintaining the original tone and intent. Ensure the summary is easy to understand and captures the essence of the source material.: {english_translation}"}]).content
-        key_points = chat_model.invoke([{"role": "system", "content": f"You are an expert summarizer who excels at extracting key points from any text. Your task is to identify and present the most important information, main ideas, and critical details in a clear and concise format. Ensure that the key points reflect the essence of the original content while remaining easily understandable for the intended audience.: {english_translation}"}]).content
-        offensive_check = chat_model.invoke([{"role": "system", "content": f"You are an advanced offensive word checker capable of identifying inappropriate or offensive language in any text. Your task is to analyze the provided content and highlight any offensive words or phrases, along with a brief explanation of why each term is considered offensive. : {english_translation}"}])
+        english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
+        summary = chat_model.invoke([{"role": "user", "content": f"You are a call summarizer: You are given an English transcript of a call. Your task is to provide an expert summary: {english_translation}"}]).content
+        key_points = chat_model.invoke([{"role": "user", "content": f"Key points: {english_translation}"}]).content
+        offensive_check = "offensive" in english_translation.lower()
+
+        # Generate satisfaction score using Gemini based on the summary and transcript
+        satisfaction_score = chat_model.invoke([{
+            "role": "user",
+            "content": f"Based on the following summary and transcript, provide a satisfaction score (1-100):\n\nSummary: {summary}\nTranscript: {transcript}.Give only a value no text please"
+        }]).content
 
         # Prepare Call data
         call_data = {
@@ -80,7 +85,8 @@ class ProcessCallView(APIView):
             "transcriptEnglish": english_translation,
             "keyPoints": key_points.split(", "),
             "offensiveContent": offensive_check,
-            "summary": summary
+            "summary": summary,
+            "satisfactionScore": satisfaction_score  # Store satisfaction score
         }
 
         # Insert the call into the Call collection
@@ -94,7 +100,8 @@ class ProcessCallView(APIView):
                 "$inc": {
                     "numberOfCalls": 1,
                     "numberOfIncoming" if call_data["type"] == "incoming" else "numberOfOutgoing": 1,
-                    "numberOfMisbehaves": 1 if offensive_check else 0
+                    "numberOfMisbehaves": 1 if offensive_check else 0,
+                    "totalCallTime": call_data["length"]  # Increment total call time
                 }
             }
         )
@@ -102,4 +109,4 @@ class ProcessCallView(APIView):
         # Clean up the saved audio file
         os.remove(audio_path)
 
-        return Response({"message": "Call processed successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "Call processed successfully", "satisfactionScore": satisfaction_score}, status=status.HTTP_200_OK)
