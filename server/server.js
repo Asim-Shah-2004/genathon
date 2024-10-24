@@ -12,15 +12,15 @@ import { authenticateToken } from "./middlewares/index.js";
 import { logger } from "./utils/index.js";
 import { registerRouter, loginRouter, userRouter } from "./routers/index.js";
 
-const corsOptions = {
-  origin: ["*"],
-  methods: "POST, GET , PATCH",
-  credentials: true,
-};
+// const corsOptions = {
+//   origin: ["*"],
+//   methods: "POST, GET , PATCH",
+//   credentials: true,
+// };
 
 const app = express();
 const PORT = process.env.PORT;
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 const corsOptions = {
     origin: ["*"],
