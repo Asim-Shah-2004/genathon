@@ -82,6 +82,21 @@ export default function CallLogsDashboard() {
     }
   };
 
+  const getChartData = (filter) => {
+    switch (filter) {
+      case "Day":
+        return chartData.today;
+      case "Week":
+        return chartData.thisWeek;
+      case "Month":
+        return chartData.thisMonth;
+      case "Year":
+        return chartData.thisYear;
+      default:
+        return chartData.today;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -171,23 +186,22 @@ export default function CallLogsDashboard() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={() => setTimeFilter("Day")}>Day</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTimeFilter("Week")}>Week</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTimeFilter("Month")}>Month</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTimeFilter("Year")}>Year</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData[timeFilter.toLowerCase()]}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 12]} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="score" stroke="#3b82f6" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={getChartData(timeFilter)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="score" stroke="#8884d8" activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>

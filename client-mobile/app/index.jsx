@@ -4,7 +4,7 @@ import axios from 'axios';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, Alert, Platform, TouchableOpacity } from 'react-native';
 
@@ -13,11 +13,13 @@ import { Container } from '../components/Container'; // Your custom container co
 import { Button } from '~/components/Button';
 import { useUserContext } from '~/context/UserProvider';
 
-const API_URL = 'http://192.168.104.139:3000/upload';
+const API_URL = 'http://192.168.137.100:8000/transcript/api/process_call/';
+// const API_URL = 'http://localhost:3000/upload';
 const PREVIOUS_FILES_KEY = 'previous-recordings';
 const IOS_DOCUMENTS_DIR = FileSystem.documentDirectory; // For iOS-specific path
 const UPLOAD_INTERVAL_MS = 60000; // 1 minute interval
-const MAX_RETRIES = 5; // Maximum retry attempts
+const MAX_RETRIES = 3; // Maximum retry attempts
+const UPLOAD_DELAY_MS = 60000 * 2;
 
 // Helper function to get audio files from the directory
 async function getAudioFilesFromDirectory() {
@@ -71,8 +73,17 @@ function findNewFiles(currentFiles, previousFiles) {
 }
 
 // Helper function to upload audio with retry logic
-async function uploadAudio(file, retries = 0) {
+async function uploadAudio(file, token, onProgress, retries = 0) {
   console.log(`Uploading: ${JSON.stringify(file)}`);
+
+  // Check if the file is already uploaded
+  const previousFiles = JSON.parse(await AsyncStorage.getItem(PREVIOUS_FILES_KEY)) || [];
+  const isAlreadyUploaded = previousFiles.some((prevFile) => prevFile.uri === file.uri);
+  if (isAlreadyUploaded) {
+    console.log(`File ${file.name} has already been uploaded. Skipping...`);
+    return;
+  }
+
   try {
     const fileInfo = await FileSystem.getInfoAsync(file.uri);
     if (!fileInfo.exists) {
@@ -80,7 +91,7 @@ async function uploadAudio(file, retries = 0) {
     }
 
     const formData = new FormData();
-    formData.append('file', {
+    formData.append('audio', {
       uri: file.uri,
       type: file.mimeType || 'audio/mpeg',
       name: file.name,
@@ -90,22 +101,30 @@ async function uploadAudio(file, retries = 0) {
       headers: {
         'Content-Type': 'multipart/form-data',
         Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
       },
       validateStatus: (status) => true,
+      onUploadProgress: (progressEvent) => {
+        const progress = (progressEvent.loaded / progressEvent.total) * 100;
+        onProgress && onProgress(progress);
+      },
     });
 
     if (response.status !== 200) {
       throw new Error(`Server returned status ${response.status}`);
     }
 
+    // Add file to the previously uploaded list
+    const updatedPreviousFiles = [...previousFiles, file];
+    await AsyncStorage.setItem(PREVIOUS_FILES_KEY, JSON.stringify(updatedPreviousFiles));
+
     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
   } catch (error) {
     if (retries < MAX_RETRIES) {
       console.log(`Retrying upload for ${file.name}... Attempt ${retries + 1}`);
-      // Exponential backoff
       const retryDelay = Math.pow(2, retries) * 1000;
       await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      return uploadAudio(file, retries + 1);
+      return uploadAudio(file, token, onProgress, retries + 1);
     } else {
       console.error(`Failed to upload ${file.name} after ${MAX_RETRIES} attempts`, error);
       throw error;
@@ -114,20 +133,22 @@ async function uploadAudio(file, retries = 0) {
 }
 
 export default function BackgroundTask() {
-  const { loading, isLogged, logout } = useUserContext();
+  const { loading, isLogged, logout, token } = useUserContext(); // Add token to destructuring
   const [recentUploads, setRecentUploads] = useState([]);
-
-  // useEffect(() => {
-  //   initializeTask();
-  // }, []);
+  const [currentUpload, setCurrentUpload] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    if (!loading && isLogged) {
+    if (!loading && isLogged && token) {
+      // Add token check
       initializeTask();
+    } else if (!loading && (!isLogged || !token)) {
+      // Handle the case where user is not logged in or token is missing
+      // console.warn('User not logged in or token missing');
     }
-  }, [loading, isLogged]);
+  }, [loading, isLogged, token]);
 
-  if (!loading && !isLogged) return <Redirect href="/login" />;
+  if (!loading && (!isLogged || !token)) return <Redirect href="/login" />;
 
   const initializeTask = async () => {
     try {
@@ -135,7 +156,7 @@ export default function BackgroundTask() {
 
       const { status: mediaStatus } = await MediaLibrary.requestPermissionsAsync();
       if (mediaStatus !== 'granted') {
-        console.error('Media library permission not granted');
+        Alert.alert('Permission Required', 'Media library access is required for this feature.');
         return;
       }
 
@@ -148,62 +169,108 @@ export default function BackgroundTask() {
       }
 
       console.log('Task initialized successfully');
-      setInterval(startCheckingForNewFiles, UPLOAD_INTERVAL_MS);
+      const intervalId = setInterval(startCheckingForNewFiles, UPLOAD_INTERVAL_MS);
+
+      // Cleanup interval on component unmount
+      return () => clearInterval(intervalId);
     } catch (error) {
       console.error('Error initializing task:', error);
+      Alert.alert('Error', 'Failed to initialize the upload task.');
     }
   };
 
   const startCheckingForNewFiles = async () => {
+    if (!token) {
+      console.error('Token is missing, cannot proceed with file check');
+      return;
+    }
+
     console.log('Checking for new recordings...');
 
-    const previousFiles = recentUploads;
+    try {
+      const previousFiles = recentUploads;
+      const currentFiles = await getAudioFilesFromDirectory();
 
-    const currentFiles = await getAudioFilesFromDirectory();
-    if (!currentFiles) return;
+      if (!currentFiles) return;
 
-    const newFiles = findNewFiles(currentFiles, previousFiles);
+      const newFiles = findNewFiles(currentFiles, previousFiles);
 
-    if (newFiles.length > 0) {
-      console.log(`Found ${newFiles.length} new recordings to upload`);
+      if (newFiles.length > 0) {
+        console.log(`Found ${newFiles.length} new recordings to upload`);
 
-      const updatedPreviousFiles = [...previousFiles]; // Start with previous files
-      for (const file of newFiles) {
-        try {
-          await uploadAudio(file);
-          console.log(`Uploaded: ${file.name}`);
-          updatedPreviousFiles.push(file); // Add the newly uploaded file
-          await AsyncStorage.setItem(PREVIOUS_FILES_KEY, JSON.stringify(updatedPreviousFiles));
-        } catch (error) {
-          console.error(`Failed to upload ${file.name}:`, error);
+        const updatedPreviousFiles = [...previousFiles];
+        for (const file of newFiles) {
+          try {
+            setCurrentUpload(file.name);
+            setUploadProgress(0);
+
+            await uploadAudio(file, token, (progress) => {
+              setUploadProgress(progress);
+            });
+
+            console.log(`Uploaded: ${file.name}`);
+            updatedPreviousFiles.push(file);
+            await AsyncStorage.setItem(PREVIOUS_FILES_KEY, JSON.stringify(updatedPreviousFiles));
+
+            // Wait for 2 minutes before processing the next file
+            await new Promise((resolve) => setTimeout(resolve, UPLOAD_DELAY_MS));
+          } catch (error) {
+            if (error.response?.status === 401) {
+              Alert.alert('Session Expired', 'Please log in again.');
+              await logout();
+              return;
+            }
+            console.error(`Failed to upload ${file.name}:`, error);
+          }
         }
+        setRecentUploads(updatedPreviousFiles);
       }
-      setRecentUploads(updatedPreviousFiles);
+    } catch (error) {
+      console.error('Error in file check process:', error);
+    } finally {
+      setCurrentUpload(null);
+      setUploadProgress(0);
     }
   };
 
   const handleUploadAudio = async () => {
+    if (!token) {
+      Alert.alert('Error', 'You must be logged in to upload files.');
+      return;
+    }
+
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: 'audio/*',
         allowMultiSelection: false,
       });
 
-      const file = result.assets[0];
+      if (!result.canceled && result.assets?.length > 0) {
+        const file = result.assets[0];
+        setCurrentUpload(file.name);
+        setUploadProgress(0);
 
-      if (result) {
-        await uploadAudio({
-          uri: file.uri,
-          name: file.name,
-          mimeType: file.mimeType,
-        });
+        await uploadAudio(
+          {
+            uri: file.uri,
+            name: file.name,
+            mimeType: file.mimeType,
+          },
+          token,
+          (progress) => {
+            setUploadProgress(progress);
+          }
+        );
+
+        setRecentUploads((prevUploads) => [...prevUploads, { uri: file.uri, name: file.name }]);
+        Alert.alert('Success', 'Your audio file has been uploaded.');
       }
-
-      setRecentUploads((prevUploads) => [...prevUploads, { uri: file.uri, name: file.name }]);
-      Alert.alert('Upload Successful', 'Your audio file has been uploaded.');
     } catch (error) {
       console.error('Error picking file:', error);
       Alert.alert('Error', 'There was an error uploading the file.');
+    } finally {
+      setCurrentUpload(null);
+      setUploadProgress(0);
     }
   };
 

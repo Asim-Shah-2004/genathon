@@ -9,6 +9,7 @@ export const useUserContext = () => useContext(UserContext);
 const UserProvider = ({ children }) => {
   const [isLogged, setIsLogged] = useState(false);
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,11 +39,12 @@ const UserProvider = ({ children }) => {
 
       if (response.status === 200) {
         const { token } = response.data;
+        setToken(token);
         const userData = jwtDecode(token);
         setIsLogged(true);
         setUser(userData);
         await AsyncStorage.setItem('isLogged', 'true');
-        await AsyncStorage.setItem('token', token); // Save the token
+        await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
       } else {
         throw new Error('Login failed');
@@ -58,13 +60,14 @@ const UserProvider = ({ children }) => {
   const logout = async () => {
     setIsLogged(false);
     setUser(null);
+    setToken(null);
     await AsyncStorage.removeItem('isLogged');
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
   };
 
   return (
-    <UserContext.Provider value={{ isLogged, user, loading, login, logout }}>
+    <UserContext.Provider value={{ isLogged, user, token, loading, login, logout }}>
       {children}
     </UserContext.Provider>
   );
