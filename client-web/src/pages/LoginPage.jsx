@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Mail, Lock } from "lucide-react";
 import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:3000',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true
+});
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,74 +28,61 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/login', {
+      const response = await api.post('/login', {
         email,
         password
       });
 
-      // Assuming the token comes in response.data.token
       const { token } = response.data;
-      
-      // Store the token in localStorage
       localStorage.setItem('jwt_token', token);
-      
-      // Set the default Authorization header for future requests
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      // Redirect to dashboard
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       navigate('/dashboard');
     } catch (error) {
-      setError(
-        error.response?.data?.message || 
-        'An error occurred during sign in. Please try again.'
-      );
+      if (error.response) {
+        setError(error.response.data.message || 'Authentication failed');
+      } else if (error.request) {
+        setError('No response from server. Please try again.');
+      } else {
+        setError('An error occurred during sign in. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row">
-      <div className="w-full md:w-2/3 bg-cover bg-center p-8 flex items-center justify-center relative overflow-hidden">
-        <img 
-          src="/api/placeholder/800/600" 
-          alt="Login background" 
-          className="w-full h-full object-cover"
-        />
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-gray-50">
+      {/* Left side - Image */}
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-blue-500 to-blue-700 p-8 items-center justify-center relative">
+        <div className="text-white max-w-md z-10">
+          <h2 className="text-4xl font-bold mb-4">Welcome Back</h2>
+          <p className="text-lg opacity-90">
+            Sign in to access your account and manage your dashboard.
+          </p>
+        </div>
       </div>
-      <div className="w-full md:w-1/2 bg-white p-8 flex items-center justify-center">
-        <Card className="w-full max-w-md rounded-2xl shadow-lg">
+
+      {/* Right side - Login Form */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-8">
+        <Card className="w-full max-w-md">
           <CardContent className="p-6">
-            <motion.h1
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-3xl font-bold text-center mb-6"
-            >
-              Sign in
-            </motion.h1>
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-900">Sign in</h1>
+              <p className="text-gray-500 mt-2">Enter your credentials to continue</p>
+            </div>
             
             {error && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mb-4"
-              >
+              <div className="mb-6">
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
-              </motion.div>
+              </div>
             )}
 
-            <motion.form
-              onSubmit={handleSubmit}
-              className="space-y-4 flex flex-col"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="email" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
                   Email
                 </label>
                 <Input
@@ -97,12 +92,14 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="rounded-md"
+                  className="rounded-lg"
                   disabled={isLoading}
                 />
               </div>
+
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium">
+                <label htmlFor="password" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
                   Password
                 </label>
                 <Input
@@ -112,29 +109,41 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="rounded-md"
+                  className="rounded-lg"
                   disabled={isLoading}
                 />
               </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-gray-300 text-blue-600"
+                  />
+                  <span className="text-gray-600">Remember me</span>
+                </label>
+                <a href="#" className="text-blue-600 hover:text-blue-800 font-medium">
+                  Forgot password?
+                </a>
+              </div>
+
               <Button 
                 type="submit" 
-                className="w-64 self-center bg-blue-500 hover:bg-blue-600 text-white rounded-full py-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2"
                 disabled={isLoading}
               >
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
-            </motion.form>
+            </form>
             
-            <motion.div
-              className="mt-4 text-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              <a href="#" className="text-sm text-blue-600 hover:underline">
-                Forgot your password?
-              </a>
-            </motion.div>
+            <div className="mt-6 text-center text-sm">
+              <p className="text-gray-600">
+                Don't have an account?{' '}
+                <a href="/signup" className="text-blue-600 hover:text-blue-800 font-medium">
+                  Sign up
+                </a>
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
