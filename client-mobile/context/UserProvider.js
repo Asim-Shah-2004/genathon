@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const UserContext = createContext();
@@ -29,29 +31,40 @@ const UserProvider = ({ children }) => {
     checkUser();
   }, []);
 
-  const login = async (userData) => {
-    setIsLogged(true);
-    setUser(userData);
-    await AsyncStorage.setItem('isLogged', 'true');
-    await AsyncStorage.setItem('user', JSON.stringify(userData));
+  const login = async (email, password) => {
+    setLoading(true);
+    try {
+      const response = await axios.post('http://192.168.137.1:3000/login', { email, password });
+
+      if (response.status === 200) {
+        const { token } = response.data;
+        const userData = jwtDecode(token);
+        setIsLogged(true);
+        setUser(userData);
+        await AsyncStorage.setItem('isLogged', 'true');
+        await AsyncStorage.setItem('token', token); // Save the token
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        throw new Error('Login failed');
+      }
+    } catch (error) {
+      console.error('Login failed:', error.message);
+      setLoading(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {
     setIsLogged(false);
     setUser(null);
     await AsyncStorage.removeItem('isLogged');
+    await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('user');
   };
 
   return (
-    <UserContext.Provider
-      value={{
-        isLogged,
-        user,
-        loading,
-        login,
-        logout,
-      }}>
+    <UserContext.Provider value={{ isLogged, user, loading, login, logout }}>
       {children}
     </UserContext.Provider>
   );

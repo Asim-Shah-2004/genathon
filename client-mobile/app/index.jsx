@@ -1,13 +1,16 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Alert, Platform } from 'react-native';
+import { View, Text, FlatList, Alert, Platform, TouchableOpacity } from 'react-native';
 
 import { Container } from '../components/Container'; // Your custom container component
 
+import { Button } from '~/components/Button';
 import { useUserContext } from '~/context/UserProvider';
 
 const API_URL = 'http://192.168.104.139:3000/upload';
@@ -69,6 +72,7 @@ function findNewFiles(currentFiles, previousFiles) {
 
 // Helper function to upload audio with retry logic
 async function uploadAudio(file, retries = 0) {
+  console.log(`Uploading: ${JSON.stringify(file)}`);
   try {
     const fileInfo = await FileSystem.getInfoAsync(file.uri);
     if (!fileInfo.exists) {
@@ -110,20 +114,20 @@ async function uploadAudio(file, retries = 0) {
 }
 
 export default function BackgroundTask() {
-  const { loading, isLogged } = useUserContext();
+  const { loading, isLogged, logout } = useUserContext();
   const [recentUploads, setRecentUploads] = useState([]);
 
-  useEffect(() => {
-    initializeTask();
-  }, []);
-
   // useEffect(() => {
-  //   if (!loading && isLogged) {
-  //     initializeTask();
-  //   }
-  // }, [loading, isLogged]);
+  //   initializeTask();
+  // }, []);
 
-  if (!loading && isLogged) return <Redirect href="/login" />;
+  useEffect(() => {
+    if (!loading && isLogged) {
+      initializeTask();
+    }
+  }, [loading, isLogged]);
+
+  if (!loading && !isLogged) return <Redirect href="/login" />;
 
   const initializeTask = async () => {
     try {
@@ -178,6 +182,31 @@ export default function BackgroundTask() {
     }
   };
 
+  const handleUploadAudio = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        allowMultiSelection: false,
+      });
+
+      const file = result.assets[0];
+
+      if (result) {
+        await uploadAudio({
+          uri: file.uri,
+          name: file.name,
+          mimeType: file.mimeType,
+        });
+      }
+
+      setRecentUploads((prevUploads) => [...prevUploads, { uri: file.uri, name: file.name }]);
+      Alert.alert('Upload Successful', 'Your audio file has been uploaded.');
+    } catch (error) {
+      console.error('Error picking file:', error);
+      Alert.alert('Error', 'There was an error uploading the file.');
+    }
+  };
+
   const renderItem = ({ item }) => {
     return (
       <View className="my-1 rounded-lg border-2 border-white bg-cyan-400 p-3">
@@ -190,7 +219,14 @@ export default function BackgroundTask() {
 
   return (
     <Container className="p-4">
-      <Text className="my-2 mb-4 text-4xl text-white">Recent Uploads</Text>
+      <View className="mb-4 flex-row items-center justify-between">
+        <Text className="my-2 text-4xl text-white">Recent Uploads</Text>
+        <TouchableOpacity
+          onPress={async () => await logout()}
+          className="rounded-full bg-cyan-500 p-2 active:bg-cyan-600">
+          <Ionicons name="log-out-outline" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
       {recentUploads.length > 0 ? (
         <FlatList
           data={recentUploads}
@@ -202,10 +238,11 @@ export default function BackgroundTask() {
           nestedScrollEnabled
         />
       ) : (
-        <Text className="rounded-md bg-cyan-400 p-4 text-center text-4xl text-black">
+        <Text className="rounded-lg bg-cyan-400 p-4 text-center text-3xl text-black">
           No recent uploads
         </Text>
       )}
+      <Button title="Upload Audio" onPress={handleUploadAudio} className="my-5 bg-cyan-500" />
     </Container>
   );
 }
