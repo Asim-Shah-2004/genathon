@@ -34,9 +34,9 @@ calls_collection = db["Call"]
 SECRET_KEY = 'django-insecure-&!kwq0rs1k)4$(7f2^fyjnuokfzp%f3cuc8p5sbbzdwp)=$i@g'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
