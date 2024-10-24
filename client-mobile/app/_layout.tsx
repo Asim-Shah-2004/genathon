@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font';
 import { SplashScreen, Stack } from 'expo-router';
 import { useEffect } from 'react';
+import { SafeAreaView } from 'react-native';
 import '../global.css';
 
 import UserProvider from '../context/UserProvider';
@@ -38,11 +39,13 @@ export default function Layout() {
 
   return (
     <UserProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-        }}
-      />
+      <SafeAreaView className="flex flex-1 bg-[#121212] p-6">
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
+      </SafeAreaView>
     </UserProvider>
   );
 }

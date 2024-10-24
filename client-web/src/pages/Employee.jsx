@@ -19,6 +19,14 @@ const callData = [
   { id: 2, type: "Incoming", duration: "8:10", timestamp: "21 March 2024, 1:15 PM", sentiment: "Neutral", score: 5.5 },
   { id: 3, type: "Incoming", duration: "0:00", timestamp: "20 March 2024, 4:10 PM", sentiment: "Negative", score: 2.3 },
   { id: 4, type: "Outgoing", duration: "2:45", timestamp: "19 March 2024, 11:10 AM", sentiment: "Positive", score: 8.2 },
+  { id: 1, type: "Outgoing", duration: "5:23", timestamp: "22 March 2024, 3:45 PM", sentiment: "Positive", score: 7.1 },
+  { id: 2, type: "Incoming", duration: "8:10", timestamp: "21 March 2024, 1:15 PM", sentiment: "Neutral", score: 5.5 },
+  { id: 3, type: "Incoming", duration: "0:00", timestamp: "20 March 2024, 4:10 PM", sentiment: "Negative", score: 2.3 },
+  { id: 4, type: "Outgoing", duration: "2:45", timestamp: "19 March 2024, 11:10 AM", sentiment: "Positive", score: 8.2 },
+  { id: 1, type: "Outgoing", duration: "5:23", timestamp: "22 March 2024, 3:45 PM", sentiment: "Positive", score: 7.1 },
+  { id: 2, type: "Incoming", duration: "8:10", timestamp: "21 March 2024, 1:15 PM", sentiment: "Neutral", score: 5.5 },
+  { id: 3, type: "Incoming", duration: "0:00", timestamp: "20 March 2024, 4:10 PM", sentiment: "Negative", score: 2.3 },
+  { id: 4, type: "Outgoing", duration: "2:45", timestamp: "19 March 2024, 11:10 AM", sentiment: "Positive", score: 8.2 },
 ];
 
 const chartData = {
@@ -92,7 +100,7 @@ export default function CallLogsDashboard() {
             </DropdownMenu>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto h-[300px]">
               <Table>
                 <TableHeader className="bg-blue-600">
                   <TableRow>
@@ -171,12 +179,12 @@ export default function CallLogsDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData[timeFilter.toLowerCase()]}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis domain={[0, 12]} />
                   <Tooltip />
-                  <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="score" stroke="#3b82f6" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
