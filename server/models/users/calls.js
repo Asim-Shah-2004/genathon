@@ -35,6 +35,10 @@ const callSchema = new mongoose.Schema({
   summary: {
     type: String, // summary of the call
   },
+  timestamp:{
+    type:Date,
+    default:Date.now()
+  }
 }, { collection: 'Call' });
 
 const Call = mongoose.model('Call', callSchema);
