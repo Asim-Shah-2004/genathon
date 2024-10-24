@@ -5,6 +5,7 @@ import getAllEmployee from "./generalControllers/getAllEmployee.js";
 import getCallStats from "./generalControllers/numberOfCalls.js";
 import getTotalCallHoursAndIncrease from "./generalControllers/getTotalHours.js";
 import getCallStatsForPastWeek from "./generalControllers/getWeeklyStats.js";
+import getOverallAvgSatisfaction from "./generalControllers/getAvgSatisfaction.js";
 
 export{
     registerEmployee,
@@ -13,5 +14,6 @@ export{
     getAllEmployee,
     getCallStats,
     getTotalCallHoursAndIncrease,
-    getCallStatsForPastWeek
+    getCallStatsForPastWeek,
+    getOverallAvgSatisfaction
 }
