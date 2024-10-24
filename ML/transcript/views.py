@@ -313,63 +313,193 @@ class CustomerServiceAnalyzer:
 
         return pd.DataFrame(conversation_data)
 
-    def plot_detailed_analysis(self, df: pd.DataFrame):
+    # def plot_detailed_analysis(self, df: pd.DataFrame, file_path: str):
+    #     """Generate comprehensive visualizations for conversation analysis."""
+    #     plot_dir = os.path.dirname(file_path)
+    #     if not os.path.exists(plot_dir):
+    #         os.makedirs(plot_dir)
+    #     plt.style.use('seaborn')
+    #     fig = plt.figure(figsize=(20, 15))
+    #     gs = fig.add_gridspec(3, 3)
+
+    # # Speaker Distribution
+    #     ax1 = fig.add_subplot(gs[0, 0])
+    #     sns.countplot(data=df, x='speaker', ax=ax1)
+    #     ax1.set_title('Speaker Distribution')
+
+    # # Sentiment Flow
+    #     ax2 = fig.add_subplot(gs[0, 1:])
+    #     df['sentiment_compound'].plot(ax=ax2, marker='o')
+    #     ax2.set_title('Sentiment Flow Throughout Conversation')
+    #     ax2.set_xlabel('Utterance Number')
+    #     ax2.set_ylabel('Compound Sentiment')
+
+    # # Positive vs Negative Sentiment per Speaker
+    #     ax3 = fig.add_subplot(gs[1, 0])
+    #     sns.barplot(data=df, x='speaker', y='sentiment_positive', color='green', label='Positive', ax=ax3)
+    #     sns.barplot(data=df, x='speaker', y='sentiment_negative', color='red', label='Negative', ax=ax3)
+    #     ax3.set_title('Positive vs Negative Sentiment by Speaker')
+    #     ax3.legend()
+
+    # # Word Count Distribution by Speaker
+    #     ax4 = fig.add_subplot(gs[1, 1])
+    #     sns.boxplot(data=df, x='speaker', y='word_count', ax=ax4)
+    #     ax4.set_title('Word Count Distribution by Speaker')
+
+    # # Sentiment Components (Positive, Negative, Neutral) Distribution
+    #     ax5 = fig.add_subplot(gs[1, 2])
+    #     sentiment_components = df[['sentiment_positive', 'sentiment_negative', 'sentiment_neutral']].mean()
+    #     sentiment_components.plot(kind='pie', autopct='%1.1f%%', ax=ax5)
+    #     ax5.set_title('Overall Sentiment Distribution')
+
+    # # Emotion Distribution
+    #     ax6 = fig.add_subplot(gs[2, 0])
+    #     emotion_data = df[['anger_score', 'frustration_score', 'satisfaction_score', 'urgency_score']].mean()
+    #     emotion_data.plot(kind='bar', ax=ax6)
+    #     ax6.set_title('Average Emotion Scores')
+
+    # # Intensity Metrics Over Time (Exclamations, Questions, Caps Ratio)
+    #     ax7 = fig.add_subplot(gs[2, 1])
+    #     df[['exclamation_count', 'question_count', 'caps_ratio']].plot(ax=ax7)
+    #     ax7.set_title('Conversation Intensity Metrics Over Time')
+    #     ax7.set_xlabel('Utterance Number')
+    #     ax7.set_ylabel('Count/Ratio')
+    #     ax7.legend(['Exclamations', 'Questions', 'Caps Ratio'])
+
+    # # Compound Sentiment Distribution
+    #     ax8 = fig.add_subplot(gs[2, 2])
+    #     sns.histplot(df['sentiment_compound'], kde=True, ax=ax8, color='blue')
+    #     ax8.set_title('Distribution of Compound Sentiment Scores')
+
+    #     plt.tight_layout()
+    #     plt.savefig(file_path)
+    #     plt.close()
+
+    def plot_detailed_analysis(self, df: pd.DataFrame, file_path: str):
         """Generate comprehensive visualizations for conversation analysis."""
-        plt.style.use('seaborn')
-        fig = plt.figure(figsize=(20, 15))
-        gs = fig.add_gridspec(3, 3)
-
-    # Speaker Distribution
-        ax1 = fig.add_subplot(gs[0, 0])
-        sns.countplot(data=df, x='speaker', ax=ax1)
-        ax1.set_title('Speaker Distribution')
-
-    # Sentiment Flow
-        ax2 = fig.add_subplot(gs[0, 1:])
-        df['sentiment_compound'].plot(ax=ax2, marker='o')
-        ax2.set_title('Sentiment Flow Throughout Conversation')
-        ax2.set_xlabel('Utterance Number')
-        ax2.set_ylabel('Compound Sentiment')
-
-    # Positive vs Negative Sentiment per Speaker
-        ax3 = fig.add_subplot(gs[1, 0])
-        sns.barplot(data=df, x='speaker', y='sentiment_positive', color='green', label='Positive', ax=ax3)
-        sns.barplot(data=df, x='speaker', y='sentiment_negative', color='red', label='Negative', ax=ax3)
-        ax3.set_title('Positive vs Negative Sentiment by Speaker')
-        ax3.legend()
-
-    # Word Count Distribution by Speaker
-        ax4 = fig.add_subplot(gs[1, 1])
-        sns.boxplot(data=df, x='speaker', y='word_count', ax=ax4)
-        ax4.set_title('Word Count Distribution by Speaker')
-
-    # Sentiment Components (Positive, Negative, Neutral) Distribution
-        ax5 = fig.add_subplot(gs[1, 2])
-        sentiment_components = df[['sentiment_positive', 'sentiment_negative', 'sentiment_neutral']].mean()
-        sentiment_components.plot(kind='pie', autopct='%1.1f%%', ax=ax5)
-        ax5.set_title('Overall Sentiment Distribution')
-
-    # Emotion Distribution
-        ax6 = fig.add_subplot(gs[2, 0])
-        emotion_data = df[['anger_score', 'frustration_score', 'satisfaction_score', 'urgency_score']].mean()
-        emotion_data.plot(kind='bar', ax=ax6)
-        ax6.set_title('Average Emotion Scores')
-
-    # Intensity Metrics Over Time (Exclamations, Questions, Caps Ratio)
-        ax7 = fig.add_subplot(gs[2, 1])
-        df[['exclamation_count', 'question_count', 'caps_ratio']].plot(ax=ax7)
-        ax7.set_title('Conversation Intensity Metrics Over Time')
-        ax7.set_xlabel('Utterance Number')
-        ax7.set_ylabel('Count/Ratio')
-        ax7.legend(['Exclamations', 'Questions', 'Caps Ratio'])
-
-    # Compound Sentiment Distribution
-        ax8 = fig.add_subplot(gs[2, 2])
-        sns.histplot(df['sentiment_compound'], kde=True, ax=ax8, color='blue')
-        ax8.set_title('Distribution of Compound Sentiment Scores')
-
+        # Ensure the directory exists
+        plot_dir = os.path.dirname(file_path)
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+            
+        # Set the style - using default style instead of seaborn
+        plt.style.use('default')
+        
+        # Create separate plots for different metrics
+        
+        # 1. Speaker Distribution Plot
+        plt.figure(figsize=(10, 6))
+        speaker_counts = df['speaker'].value_counts()
+        speaker_counts.plot(kind='bar')
+        plt.title('Speaker Distribution')
+        plt.xlabel('Speaker')
+        plt.ylabel('Number of Messages')
         plt.tight_layout()
-        return fig
+        speaker_plot_path = os.path.join(plot_dir, 'speaker_distribution.png')
+        plt.savefig(speaker_plot_path)
+        plt.close()
+        
+        # 2. Sentiment Flow
+        plt.figure(figsize=(12, 6))
+        plt.plot(range(len(df)), df['sentiment_compound'], marker='o')
+        plt.title('Sentiment Flow Throughout Conversation')
+        plt.xlabel('Message Number')
+        plt.ylabel('Compound Sentiment')
+        plt.grid(True)
+        plt.tight_layout()
+        sentiment_plot_path = os.path.join(plot_dir, 'sentiment_flow.png')
+        plt.savefig(sentiment_plot_path)
+        plt.close()
+        
+        # 3. Emotion Distribution
+        plt.figure(figsize=(10, 6))
+        emotion_data = df[['anger_score', 'frustration_score', 
+                          'satisfaction_score', 'urgency_score']].mean()
+        emotion_data.plot(kind='bar')
+        plt.title('Average Emotion Scores')
+        plt.xlabel('Emotions')
+        plt.ylabel('Score')
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        emotion_plot_path = os.path.join(plot_dir, 'emotion_distribution.png')
+        plt.savefig(emotion_plot_path)
+        plt.close()
+        
+        # 4. Word Count Distribution
+        plt.figure(figsize=(10, 6))
+        plt.boxplot([df[df['speaker'] == speaker]['word_count'] 
+                    for speaker in df['speaker'].unique()],
+                   labels=df['speaker'].unique())
+        plt.title('Word Count Distribution by Speaker')
+        plt.ylabel('Word Count')
+        plt.tight_layout()
+        wordcount_plot_path = os.path.join(plot_dir, 'word_count_distribution.png')
+        plt.savefig(wordcount_plot_path)
+        plt.close()
+        
+        # 5. Intensity Metrics
+        plt.figure(figsize=(12, 6))
+        intensity_metrics = df[['exclamation_count', 'question_count', 'caps_ratio']]
+        plt.plot(range(len(df)), intensity_metrics)
+        plt.title('Conversation Intensity Metrics')
+        plt.xlabel('Message Number')
+        plt.ylabel('Count/Ratio')
+        plt.legend(['Exclamations', 'Questions', 'Caps Ratio'])
+        plt.grid(True)
+        plt.tight_layout()
+        intensity_plot_path = os.path.join(plot_dir, 'intensity_metrics.png')
+        plt.savefig(intensity_plot_path)
+        plt.close()
+
+    def plot_insights(self, insights: Dict, file_path: str):
+        """Create visualization for the conversation insights."""
+        plot_dir = os.path.dirname(file_path)
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+            
+        plt.style.use('default')
+        
+        # Create a summary plot
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # 1. Speaker Distribution
+        speakers = insights['conversation_metrics']['speaker_distribution']
+        ax1.bar(speakers.keys(), speakers.values())
+        ax1.set_title('Speaker Distribution')
+        ax1.set_ylabel('Number of Messages')
+        
+        # 2. Emotion Metrics
+        emotions = insights['emotion_metrics']
+        ax2.bar(emotions.keys(), emotions.values())
+        ax2.set_title('Emotion Metrics')
+        ax2.tick_params(axis='x', rotation=45)
+        
+        # 3. Speaker Metrics Comparison
+        speaker_metrics = insights['speaker_metrics']
+        metrics = ['avg_sentiment', 'avg_word_count']
+        x = range(len(metrics))
+        width = 0.35
+        ax3.bar([i - width/2 for i in x], 
+                [speaker_metrics['employee'][m] for m in metrics],
+                width, label='Employee')
+        ax3.bar([i + width/2 for i in x],
+                [speaker_metrics['customer'][m] for m in metrics],
+                width, label='Customer')
+        ax3.set_title('Speaker Metrics Comparison')
+        ax3.set_xticks(x)
+        ax3.set_xticklabels(metrics)
+        ax3.legend()
+        
+        # 4. Intensity Metrics
+        intensity = insights['intensity_metrics']
+        ax4.bar(intensity.keys(), intensity.values())
+        ax4.set_title('Intensity Metrics')
+        ax4.tick_params(axis='x', rotation=45)
+        
+        plt.tight_layout()
+        plt.savefig(file_path)
+        plt.close()
+        
 
     def generate_detailed_insights(self, df: pd.DataFrame) -> Dict:
         """Generate comprehensive insights."""
@@ -537,11 +667,22 @@ class ProcessCallView(APIView):
 
         analyzer = CustomerServiceAnalyzer()
 
-        # Process transcript and get results
+# Process transcript and get results
         df = analyzer.analyze_conversation(transcript)
 
         # Generate detailed insights
         insights = analyzer.generate_detailed_insights(df)
+
+        # Create the plots directory if it doesn't exist
+        plot_dir = os.path.join('static', 'plots')
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+
+        # Generate the analysis plots
+        analyzer.plot_detailed_analysis(df, os.path.join(plot_dir, 'detailed_analysis.png'))
+
+        # Generate the insights plot
+        analyzer.plot_insights(insights, os.path.join(plot_dir, 'insights_summary.png'))
 
         # Print formatted conversation with speaker labels and metrics
         print("=== Formatted Conversation Analysis ===\n")
@@ -558,10 +699,14 @@ class ProcessCallView(APIView):
             for key, value in metrics.items():
                 print(f"  {key.replace('_', ' ').title()}: {value}")
 
-        # Generate and display visualizations
-        plt.style.use('seaborn')
-        fig = analyzer.plot_detailed_analysis(df)
-        plt.show()
+        # plot_file_path = os.path.join('static', 'plots', 'analysis_plot.png')  # Ensure this directory exists
+        # plt.style.use('ggplot')  # or another style you prefer
+
+        # analyzer.plot_detailed_analysis(insights, plot_file_path)
+        # # Generate and display visualizations
+        # plt.style.use('seaborn')
+        # fig = analyzer.plot_detailed_analysis(df)
+        # plt.show()
 
         # Save results to CSV (optional)
         df.to_csv('conversation_analysis.csv', index=False)        
