@@ -23,7 +23,7 @@ const PORT = process.env.PORT;
 app.use(cors(corsOptions));
 
 const corsOptions = {
-    origin: ["*","http://localhost:5173" , "http://192.168.118.236:5173"],
+    origin: ["*"],
     methods: "POST, GET , PATCH",
     credentials: true,
 };
