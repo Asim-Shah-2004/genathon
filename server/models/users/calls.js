@@ -35,6 +35,10 @@ const callSchema = new mongoose.Schema({
   summary: {
     type: String, // summary of the call
   },
+  satisfaction:{
+    type:Number,
+    default:0
+  },
   timestamp:{
     type:Date,
     default:Date.now()

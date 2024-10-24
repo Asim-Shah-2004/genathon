@@ -4,6 +4,7 @@ import login from "./authConrtollers/login/login.js";
 import getAllEmployee from "./generalControllers/getAllEmployee.js";
 import getCallStats from "./generalControllers/numberOfCalls.js";
 import getTotalCallHoursAndIncrease from "./generalControllers/getTotalHours.js";
+import getCallStatsForPastWeek from "./generalControllers/getWeeklyStats.js";
 
 export{
     registerEmployee,
@@ -11,5 +12,6 @@ export{
     login,
     getAllEmployee,
     getCallStats,
-    getTotalCallHoursAndIncrease
+    getTotalCallHoursAndIncrease,
+    getCallStatsForPastWeek
 }
