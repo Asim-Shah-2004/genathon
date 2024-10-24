@@ -4,3 +4,7 @@ myenv/
 venv/
 static/
 media/
+<<<<<<< Updated upstream
+=======
+static/
+>>>>>>> Stashed changes

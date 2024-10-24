@@ -11,20 +11,48 @@ from decouple import config
 from pymongo import MongoClient
 from pydub import AudioSegment  # Import pydub for audio manipulation
 from transformers import pipeline
-
+import datetime
 import pandas as pd
 import numpy as np
 import re
 import spacy
 from typing import List, Dict, Tuple
-import matplotlib.pyplot as plt
 import seaborn as sns
 from textblob import TextBlob
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
 from collections import Counter  # Import sentiment analysis pipeline
+import uuid
+from datetime import timedelta
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to Agg before importing pyplot
+import matplotlib.pyplot as plt
+from threading import Lock
 
+class ThreadSafePlotter:
+    """Thread-safe wrapper for matplotlib plotting operations"""
+    _lock = Lock()
+    
+    @staticmethod
+    def create_plot(plot_function):
+        """
+        Creates a plot in a thread-safe manner
+        
+        Args:
+            plot_function: Function that contains the matplotlib plotting commands
+        """
+        with ThreadSafePlotter._lock:
+            # Create a new figure
+            plt.figure()
+            try:
+                # Execute the plotting commands
+                plot_function()
+                # Save the plot
+                plt.savefig(plot_function.output_path)
+            finally:
+                # Clean up
+                plt.close('all')
 class CustomerServiceAnalyzer:
     def __init__(self):
         self.sia = SentimentIntensityAnalyzer()
@@ -379,6 +407,7 @@ class CustomerServiceAnalyzer:
         """Generate comprehensive visualizations for conversation analysis."""
         # Ensure the directory exists
         plot_dir = os.path.dirname(file_path)
+        print("here1")
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
             
@@ -566,149 +595,282 @@ def decode_jwt(token):
     except jwt.InvalidTokenError:
         raise Exception("Invalid Token")
 
+from datetime import datetime, timezone, timedelta
+import uuid
+import numpy as np
+import os
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
+from pydub import AudioSegment
+import matplotlib.pyplot as plt
+
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to Agg before importing pyplot
+import matplotlib.pyplot as plt
+from threading import Lock
+from datetime import datetime, timezone, timedelta
+import uuid
+import numpy as np
+import os
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
+from pydub import AudioSegment
+
+class ThreadSafePlotter:
+    """Thread-safe wrapper for matplotlib plotting operations"""
+    _lock = Lock()
+    
+    @staticmethod
+    @staticmethod
+    def create_plot(plot_function, *args, output_path: str):
+        """Creates a plot in a thread-safe manner"""
+        with ThreadSafePlotter._lock:
+            plt.figure()
+            try:
+                # Call the plot function with the provided arguments
+                plot_function(*args, file_path=output_path)  # Ensure to pass file_path correctly
+                plt.close('all')
+            except Exception as e:
+                plt.close('all')
+                raise e
+
+
+def convert_numpy_types(obj):
+    """Convert numpy types to native Python types for MongoDB compatibility."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    return obj
+
 class ProcessCallView(APIView):
     parser_classes = (MultiPartParser, FormParser)
 
     def post(self, request, *args, **kwargs):
-        # Extract JWT token from headers
-        token = request.headers.get("Authorization", "").split(" ")[1]
-        user_data = decode_jwt(token)
-        username = user_data["username"]
-        
-        # Find the employee from the database
-        employee = employees_collection.find_one({"username": username})
-        if not employee:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        plot_files = []  # Keep track of plot files to clean up
+        audio_path = None
 
-        # Get the audio file
-        audio_file = request.FILES.get('audio')
-        if not audio_file:
-            return Response({"error": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # Extract JWT token from headers
+            token = request.headers.get("Authorization", "").split(" ")[1]
+            user_data = decode_jwt(token)
+            email = user_data["email"]
 
-        # Save the audio file temporarily
-        audio_path = os.path.join("media", audio_file.name)
-        with open(audio_path, 'wb+') as destination:
-            for chunk in audio_file.chunks():
-                destination.write(chunk)
+            # Find the employee from the database
+            employee = employees_collection.find_one({"email": email})
+            if not employee:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Calculate the audio length using pydub
-        audio_segment = AudioSegment.from_file(audio_path)
-        call_length = len(audio_segment) / 1000  # Length in seconds
+            # Get the audio file
+            audio_file = request.FILES.get('audio')
+            if not audio_file:
+                return Response({"error": "No audio file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if call_length <= 0:
-            return Response({"error": "Call length must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+            # Save the audio file temporarily
+            audio_path = os.path.join("media", f"{uuid.uuid4()}_{audio_file.name}")
+            os.makedirs(os.path.dirname(audio_path), exist_ok=True)
+            with open(audio_path, 'wb+') as destination:
+                for chunk in audio_file.chunks():
+                    destination.write(chunk)
 
-        # Transcribe the audio
-        result = whisper_model.transcribe(audio_path)
-        transcript = result["text"]
+            # Calculate the audio length using pydub
+            audio_segment = AudioSegment.from_file(audio_path)
+            call_length = float(len(audio_segment) / 1000)  # Convert to seconds
 
-        # Generate English translation and analysis using Gemini
-        english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
-        summary = chat_model.invoke([{"role": "user", "content": f"You are a call summarizer: You are given an English transcript of a call. Your task is to provide detailed summary: {english_translation}"}]).content
-        key_points = chat_model.invoke([{"role": "user", "content": f"Key points detailed: {english_translation}"}]).content
-        offensive_check = "offensive" in english_translation.lower()
+            if call_length <= 0:
+                return Response({"error": "Call length must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Calculate sentiment using multiple models
-        sentiments = {}
-        for model_name, model in sentiment_models.items():
-            sentiments[model_name] = model(transcript)[0]["label"]
+            # Transcribe the audio
+            result = whisper_model.transcribe(audio_path)
+            transcript = result["text"]
 
-        # Generate satisfaction score using Gemini based on the summary and transcript
-        satisfaction_score = chat_model.invoke([{
-            "role": "user",
-            "content": f"Based on the following summary and transcript, provide a satisfaction score (1-100):\n\nSummary: {summary}\nTranscript: {transcript}. Give only a value no text please."
-        }]).content
+            # Generate English translation and analysis using Gemini
+            english_translation = chat_model.invoke([{"role": "user", "content": transcript}]).content
+            summary = chat_model.invoke([{
+                "role": "user", 
+                "content": f"Provide a detailed summary of the following call: {english_translation}"
+            }]).content
+            key_points = chat_model.invoke([{
+                "role": "user", 
+                "content": f"Provide key points for the following call: {english_translation}"
+            }]).content
+            offensive_check = "offensive" in english_translation.lower()
 
-        # Prepare Call data
-        call_data = {
-            "type": request.data.get("type", "incoming"),  # Incoming or Outgoing
-            "length": call_length,  # Call length in seconds
-            "callRecording": audio_file.read(),
-            "sentiment": sentiments,  # Store sentiment analysis results
-            "transcriptOriginal": transcript,
-            "transcriptEnglish": english_translation,
-            "keyPoints": key_points.split(", "),
-            "offensiveContent": offensive_check,
-            "summary": summary,
-            "satisfactionScore": satisfaction_score  # Store satisfaction score
-        }
+            # Calculate sentiment using multiple models
+            sentiments = {}
+            for model_name, model in sentiment_models.items():
+                result = model(transcript)[0]
+                sentiments[model_name] = str(result["label"])
 
-        # Insert the call into the Call collection
-        call_id = calls_collection.insert_one(call_data).inserted_id
+            # Generate satisfaction score using Gemini
+            satisfaction_score = float(chat_model.invoke([{
+                "role": "user",
+                "content": f"Based on the summary and transcript, provide a satisfaction score (1-100):\n\nSummary: {summary}\nTranscript: {transcript}. Give only a value no text please."
+            }]).content)
 
-        # Update the Employee with the new call ID and increment counters
-        employees_collection.update_one(
-            {"_id": employee["_id"]},
-            {
-                "$push": {"callIds": call_id},
+            # Initialize CustomerServiceAnalyzer and process transcript
+            analyzer = CustomerServiceAnalyzer()
+            conversation_df = analyzer.analyze_conversation(transcript)
+            detailed_insights = analyzer.generate_detailed_insights(conversation_df)
+
+            # Generate and save plots
+            plot_dir = os.path.join('static', 'plots')
+            os.makedirs(plot_dir, exist_ok=True)
+
+            # Create unique filenames for plots
+            plot_filename1 = f'detailed_analysis_{uuid.uuid4()}.png'
+            plot_filename2 = f'insights_summary_{uuid.uuid4()}.png'
+            detailed_analysis_path = os.path.join(plot_dir, plot_filename1)
+            insights_summary_path = os.path.join(plot_dir, plot_filename2)
+            
+            # Create plots
+            ThreadSafePlotter.create_plot(
+                analyzer.plot_detailed_analysis,
+                conversation_df,
+                output_path=detailed_analysis_path
+            )
+
+            ThreadSafePlotter.create_plot(
+                analyzer.plot_insights,
+                detailed_insights,
+                output_path=insights_summary_path
+            )
+            
+            plot_files.extend([detailed_analysis_path, insights_summary_path])
+
+            # Convert DataFrame to dict and ensure all numpy types are converted
+            conversation_analysis = [
+                convert_numpy_types(record) 
+                for record in conversation_df.to_dict('records')
+            ]
+
+            current_time = datetime.now(timezone.utc)
+
+            # Prepare Call data with all analytics
+            call_data = {
+                "type": request.data.get("type", "incoming"),
+                "length": call_length,
+                "timestamp": current_time,
+                "employeeId": employee["_id"],
+                "callRecording": audio_file.read(),
+                "sentiment": sentiments,
+                "transcriptOriginal": transcript,
+                "transcriptEnglish": english_translation,
+                "keyPoints": key_points.split(", "),
+                "offensiveContent": offensive_check,
+                "summary": summary,
+                "satisfactionScore": satisfaction_score,
+                "conversationAnalysis": {
+                    "detailed_insights": convert_numpy_types(detailed_insights),
+                    "conversation_metrics": conversation_analysis,
+                    "plot_paths": {
+                        "detailed_analysis": detailed_analysis_path,
+                        "insights_summary": insights_summary_path
+                    }
+                },
+                "metrics": {
+                    "average_confidence": float(conversation_df['confidence'].mean()),
+                    "sentiment_progression": convert_numpy_types(conversation_df['sentiment_compound'].tolist()),
+                    "speaker_distribution": convert_numpy_types(conversation_df['speaker'].value_counts().to_dict()),
+                    "response_times": convert_numpy_types(conversation_df['response_time'].tolist() if 'response_time' in conversation_df else [])
+                }
+            }
+
+            # Insert the call into the Call collection
+            call_id = calls_collection.insert_one(call_data).inserted_id
+
+            # Calculate aggregate metrics for employee update
+            avg_sentiment = float(np.mean([float(s) for s in conversation_df['sentiment_compound']]))
+            total_interactions = int(len(conversation_df))
+
+            # Update the Employee with comprehensive metrics
+            employee_update = {
+                "$push": {
+                    "callIds": call_id,
+                    "sentimentHistory": avg_sentiment,
+                    "satisfactionScores": satisfaction_score,
+                    "callLengths": call_length
+                },
                 "$inc": {
                     "numberOfCalls": 1,
-                    "numberOfIncoming" if call_data["type"] == "incoming" else "numberOfOutgoing": 1,
+                    "numberOfIncoming": 1 if call_data["type"] == "incoming" else 0,
+                    "numberOfOutgoing": 1 if call_data["type"] == "outgoing" else 0,
                     "numberOfMisbehaves": 1 if offensive_check else 0,
-                    "totalCallTime": call_length  # Increment total call time
+                    "totalCallTime": call_length,
+                    "totalInteractions": total_interactions
                 },
                 "$set": {
+                    "lastCallDate": current_time,
+                    "averageSentiment": avg_sentiment,
+                    "averageSatisfactionScore": satisfaction_score,
+                    "averageCallLength": call_length,
                     "longestCall": {
                         "callId": call_id,
                         "length": call_length,
-                        "details": call_data
+                        "timestamp": current_time,
+                        "details": {
+                            "summary": summary,
+                            "satisfactionScore": satisfaction_score,
+                            "sentiment": sentiments
+                        }
                     } if (employee.get("longestCall") is None or call_length > employee["longestCall"]["length"]) else employee["longestCall"],
                     "shortestCall": {
                         "callId": call_id,
                         "length": call_length,
-                        "details": call_data
+                        "timestamp": current_time,
+                        "details": {
+                            "summary": summary,
+                            "satisfactionScore": satisfaction_score,
+                            "sentiment": sentiments
+                        }
                     } if (employee.get("shortestCall") is None or call_length < employee["shortestCall"]["length"]) else employee["shortestCall"]
                 }
             }
-        )
 
-        # Clean up the saved audio file
-        os.remove(audio_path)
+            # Apply the main update
+            employees_collection.update_one(
+                {"_id": employee["_id"]},
+                employee_update
+            )
 
-        analyzer = CustomerServiceAnalyzer()
+            return Response({
+                "message": "Call processed successfully",
+                "callId": str(call_id),
+                "analytics": {
+                    "satisfactionScore": float(satisfaction_score),
+                    "averageSentiment": float(avg_sentiment),
+                    "totalInteractions": int(total_interactions),
+                    "callLength": float(call_length)
+                }
+            }, status=status.HTTP_200_OK)
 
-# Process transcript and get results
-        df = analyzer.analyze_conversation(transcript)
+        except Exception as e:
+            return Response({
+                "error": f"Error processing call: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Generate detailed insights
-        insights = analyzer.generate_detailed_insights(df)
+        finally:
+            # Clean up resources
+            try:
+                if audio_path and os.path.exists(audio_path):
+                    os.remove(audio_path)
+            except Exception as e:
+                print(f"Error removing audio file: {e}")
 
-        # Create the plots directory if it doesn't exist
-        plot_dir = os.path.join('static', 'plots')
-        if not os.path.exists(plot_dir):
-            os.makedirs(plot_dir)
-
-        # Generate the analysis plots
-        analyzer.plot_detailed_analysis(df, os.path.join(plot_dir, 'detailed_analysis.png'))
-
-        # Generate the insights plot
-        analyzer.plot_insights(insights, os.path.join(plot_dir, 'insights_summary.png'))
-
-        # Print formatted conversation with speaker labels and metrics
-        print("=== Formatted Conversation Analysis ===\n")
-        for _, row in df.iterrows():
-            print(f"\n{row['speaker']} (Confidence: {row['confidence']:.2f})")
-            print(f"Sentiment: {row['sentiment_compound']:.2f}")
-            print(f"Text: {row['text']}")
-            print("-" * 80)
-
-        # Print insights
-        print("\n=== Conversation Insights ===\n")
-        for category, metrics in insights.items():
-            print(f"\n{category.replace('_', ' ').title()}:")
-            for key, value in metrics.items():
-                print(f"  {key.replace('_', ' ').title()}: {value}")
-
-        # plot_file_path = os.path.join('static', 'plots', 'analysis_plot.png')  # Ensure this directory exists
-        # plt.style.use('ggplot')  # or another style you prefer
-
-        # analyzer.plot_detailed_analysis(insights, plot_file_path)
-        # # Generate and display visualizations
-        # plt.style.use('seaborn')
-        # fig = analyzer.plot_detailed_analysis(df)
-        # plt.show()
-
-        # Save results to CSV (optional)
-        df.to_csv('conversation_analysis.csv', index=False)        
-
-        return Response({"message": "Call processed successfully", "satisfactionScore": satisfaction_score}, status=status.HTTP_200_OK)
+            # Clean up plot files
+            for plot_file in plot_files:
+                try:
+                    if os.path.exists(plot_file):
+                        os.remove(plot_file)
+                except Exception as e:
+                    print(f"Error removing plot file: {e}")
