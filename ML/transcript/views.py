@@ -10,6 +10,7 @@ from langchain.schema import AIMessage
 from decouple import config
 from pymongo import MongoClient
 from pydub import AudioSegment  # Import pydub for audio manipulation
+from transformers import pipeline  # Import sentiment analysis pipeline
 
 # MongoDB setup
 DATABASE_URL = config("DATABASE_URL")
@@ -24,6 +25,13 @@ calls_collection = db["Call"]
 whisper_model = whisper.load_model("small")
 api_key = config('API_KEY')
 chat_model = ChatGoogleGenerativeAI(api_key=api_key, model="gemini-pro")
+
+# Sentiment analysis models
+sentiment_models = {
+    "distilbert": pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english"),
+    "nlptown": pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment"),
+    "emotion": pipeline("sentiment-analysis", model="j-hartmann/emotion-english-distilroberta-base")
+}
 
 def decode_jwt(token):
     """Decodes the JWT token to get user info."""
@@ -76,6 +84,11 @@ class ProcessCallView(APIView):
         key_points = chat_model.invoke([{"role": "user", "content": f"Key points: {english_translation}"}]).content
         offensive_check = "offensive" in english_translation.lower()
 
+        # Calculate sentiment using multiple models
+        sentiments = {}
+        for model_name, model in sentiment_models.items():
+            sentiments[model_name] = model(transcript)[0]["label"]
+
         # Generate satisfaction score using Gemini based on the summary and transcript
         satisfaction_score = chat_model.invoke([{
             "role": "user",
@@ -87,7 +100,7 @@ class ProcessCallView(APIView):
             "type": request.data.get("type", "incoming"),  # Incoming or Outgoing
             "length": call_length,  # Call length in seconds
             "callRecording": audio_file.read(),
-            "sentiment": "neutral",  # Example: Add actual sentiment analysis logic
+            "sentiment": sentiments,  # Store sentiment analysis results
             "transcriptOriginal": transcript,
             "transcriptEnglish": english_translation,
             "keyPoints": key_points.split(", "),
@@ -109,6 +122,18 @@ class ProcessCallView(APIView):
                     "numberOfIncoming" if call_data["type"] == "incoming" else "numberOfOutgoing": 1,
                     "numberOfMisbehaves": 1 if offensive_check else 0,
                     "totalCallTime": call_length  # Increment total call time
+                },
+                "$set": {
+                    "longestCall": {
+                        "callId": call_id,
+                        "length": call_length,
+                        "details": call_data
+                    } if (employee.get("longestCall") is None or call_length > employee["longestCall"]["length"]) else employee["longestCall"],
+                    "shortestCall": {
+                        "callId": call_id,
+                        "length": call_length,
+                        "details": call_data
+                    } if (employee.get("shortestCall") is None or call_length < employee["shortestCall"]["length"]) else employee["shortestCall"]
                 }
             }
         )
